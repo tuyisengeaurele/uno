@@ -91,6 +91,57 @@ export function pickMove(state: GameState): GameAction | null {
   return { type: 'draw', playerId: player.id };
 }
 
+const ALL_COLORS: readonly CardColor[] = ['red', 'yellow', 'green', 'blue'];
+
+/**
+ * Every legal action for the player whose turn it is. Used by the property
+ * tests to check that anything the engine says is legal actually applies.
+ */
+export function legalMoves(state: GameState): GameAction[] {
+  const player = currentPlayer(state);
+  const moves: GameAction[] = [];
+
+  if (state.pendingColorChoice === player.id) {
+    return ALL_COLORS.map((color) => ({ type: 'choose-color', playerId: player.id, color }));
+  }
+
+  if (state.drawnCard?.playerId === player.id) {
+    if (state.drawnCard.playable) {
+      const drawn = player.hand.find((c) => c.id === state.drawnCard?.cardId);
+      if (drawn !== undefined) {
+        moves.push(...playVariants('play-drawn', player.id, drawn));
+      }
+    }
+    moves.push({ type: 'pass', playerId: player.id });
+    return moves;
+  }
+
+  moves.push({ type: 'draw', playerId: player.id });
+
+  const top = state.discardPile.at(-1);
+  if (top !== undefined && state.pendingDraw === 0 && state.activeColor !== null) {
+    const activeColor = state.activeColor;
+    for (const c of player.hand) {
+      if (canPlayOn(c, top, activeColor)) {
+        moves.push(...playVariants('play-card', player.id, c));
+      }
+    }
+  }
+
+  if (player.hand.length <= 2 && player.hand.length >= 1) {
+    moves.push({ type: 'call-uno', playerId: player.id });
+  }
+
+  return moves;
+}
+
+function playVariants(type: 'play-card' | 'play-drawn', playerId: string, c: Card): GameAction[] {
+  if (isWild(c)) {
+    return ALL_COLORS.map((color) => ({ type, playerId, cardId: c.id, chosenColor: color }));
+  }
+  return [{ type, playerId, cardId: c.id }];
+}
+
 /**
  * Play the round out with the simple heuristic above. Stops when the round or
  * match ends, or after `maxTurns` as a guard against a stuck game.
