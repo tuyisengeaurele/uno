@@ -8,7 +8,12 @@ export default defineConfig({
       provider: 'v8',
       all: true,
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/**/__scenarios__/**', 'src/index.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/__scenarios__/**',
+        'src/**/__support__/**',
+        'src/index.ts',
+      ],
       thresholds: {
         branches: 95,
         functions: 95,

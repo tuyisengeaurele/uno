@@ -8,5 +8,5 @@
     "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/__scenarios__/**"]
+  "exclude": ["src/**/*.test.ts", "src/**/__scenarios__/**", "src/**/__support__/**"]
 }

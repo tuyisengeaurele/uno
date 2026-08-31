@@ -58,8 +58,22 @@ export default tseslint.config(
   },
   {
     files: ['packages/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/__support__/**', '**/__scenarios__/**'],
     rules: {
       'no-console': 'error',
+    },
+  },
+  {
+    // Tests and their fixtures build deliberately partial data and lean on
+    // known-good shapes. The strict null and unsafe-any rules get in the way
+    // there without catching real bugs.
+    files: ['**/*.test.ts', '**/__support__/**', '**/__scenarios__/**'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
   prettier,
