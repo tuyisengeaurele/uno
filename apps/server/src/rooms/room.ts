@@ -6,6 +6,7 @@ export type RoomPhase = 'lobby' | 'active' | 'finished';
 
 export const MAX_SEATS = 10;
 export const MIN_SEATS = 2;
+export const DEFAULT_TURN_TIMER_SECONDS = 45;
 
 export interface Seat {
   id: string;
