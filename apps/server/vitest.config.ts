@@ -17,6 +17,8 @@ export default defineConfig({
         'src/testing/**',
         'src/main.ts',
         'src/index.ts',
+        // Type-only modules.
+        'src/rooms/store.ts',
       ],
       // Raised to 100 in the final CI task once every handler and the
       // integration suite are in place.
