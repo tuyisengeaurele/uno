@@ -12,6 +12,7 @@ import {
   type PendingDrawKind,
   type PlayerState,
 } from './state.js';
+import { tallyRound } from './scoring.js';
 import { nextIndex, reverse, type Direction } from './turn.js';
 
 export interface EngineContext {
@@ -258,27 +259,51 @@ function resolvePlay(
     unoWindow = { playerId: player.id };
   }
 
-  const nextState: GameState = {
-    ...state,
-    players,
-    discardPile: [...state.discardPile, card],
-    activeColor,
-    direction,
-    currentPlayerIndex: winnerId === null ? nextSeat : state.currentPlayerIndex,
-    pendingDraw,
-    pendingDrawKind,
-    pendingWildFour,
-    drawnCard: null,
-    unoWindow: winnerId === null ? unoWindow : null,
-    status: winnerId === null ? state.status : 'round-over',
-    roundWinnerId: winnerId,
-  };
-
-  if (winnerId !== null) {
-    events.push({ type: 'round-ended', winnerId, scores: state.scores });
+  if (winnerId === null) {
+    return succeed(
+      {
+        ...state,
+        players,
+        discardPile: [...state.discardPile, card],
+        activeColor,
+        direction,
+        currentPlayerIndex: nextSeat,
+        pendingDraw,
+        pendingDrawKind,
+        pendingWildFour,
+        drawnCard: null,
+        unoWindow,
+      },
+      events,
+    );
   }
 
-  return succeed(nextState, events);
+  const scores = tallyRound(players, winnerId, state.scores);
+  const matchOver = (scores[winnerId] ?? 0) >= state.config.targetScore;
+  events.push(
+    matchOver
+      ? { type: 'match-ended', winnerId, scores }
+      : { type: 'round-ended', winnerId, scores },
+  );
+
+  return succeed(
+    {
+      ...state,
+      players,
+      discardPile: [...state.discardPile, card],
+      activeColor,
+      direction,
+      pendingDraw: 0,
+      pendingDrawKind: null,
+      pendingWildFour: null,
+      drawnCard: null,
+      unoWindow: null,
+      scores,
+      status: matchOver ? 'match-over' : 'round-over',
+      roundWinnerId: winnerId,
+    },
+    events,
+  );
 }
 
 function asColor(card: Card): CardColor {

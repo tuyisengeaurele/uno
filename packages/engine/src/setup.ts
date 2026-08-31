@@ -77,6 +77,18 @@ export function startRound(
 }
 
 /**
+ * Deal the next round of a match. Scores carry over and the starting seat moves
+ * one place along, the way the deal passes around a table.
+ */
+export function startNextRound(state: GameState, rng: Rng): RoundSetup {
+  const seats = state.players.map((player) => ({ id: player.id, name: player.name }));
+  return startRound(seats, state.config, rng, {
+    scores: state.scores,
+    startingSeat: nextIndex(state.startingPlayerIndex, 1, seats.length, 1),
+  });
+}
+
+/**
  * Pull the card that starts the discard pile. Wild Draw Four is never a starting
  * card. Under the `simple` rule, neither is anything other than a number.
  */
