@@ -8,7 +8,14 @@ export default defineConfig({
       provider: 'v8',
       all: true,
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/index.ts'],
+      // events.ts, errors.ts, and views.ts are type-only: nothing to execute.
+      exclude: [
+        'src/**/*.test.ts',
+        'src/index.ts',
+        'src/events.ts',
+        'src/errors.ts',
+        'src/views.ts',
+      ],
       thresholds: {
         branches: 100,
         functions: 100,
