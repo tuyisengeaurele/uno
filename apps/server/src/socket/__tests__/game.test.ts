@@ -224,14 +224,16 @@ describe('the turn timer', () => {
 
     // Let both players sit idle through several turns of auto-play.
     const autoSeats: string[] = [];
-    players[0]!.socket.on('game:delta', (payload) => {
-      if (payload.autoPlayed !== undefined) {
-        autoSeats.push(payload.autoPlayed);
-      }
+    await new Promise<void>((resolve) => {
+      players[0]!.socket.on('game:delta', (payload) => {
+        if (payload.autoPlayed !== undefined) {
+          autoSeats.push(payload.autoPlayed);
+          if (autoSeats.length >= 5) resolve();
+        }
+      });
     });
-    await new Promise((r) => setTimeout(r, 700));
 
-    expect(autoSeats.length).toBeGreaterThanOrEqual(3);
+    expect(autoSeats.length).toBeGreaterThanOrEqual(5);
     expect(autoSeats[0]).toBe(firstOnClock);
     // The clock alternates between the two seats as turns pass.
     expect(new Set(autoSeats).size).toBe(2);

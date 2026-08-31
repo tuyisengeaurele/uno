@@ -166,3 +166,47 @@ function wildColor(self: PlayerView['self'], cardId: string): { chosenColor?: Ca
     ? { chosenColor: preferredColor(self.hand) }
     : {};
 }
+
+export interface DrivenPlayer {
+  socket: TestClient;
+  id: string;
+}
+
+/**
+ * Keep playing legal moves for a set of clients, each from its own view, until
+ * `stop()` is called. Every client only ever sees its own hand.
+ */
+export function autoDrive(players: DrivenPlayer[]): { stop: () => void } {
+  const teardown: (() => void)[] = [];
+
+  const act = (view: PlayerView): void => {
+    const board = view.board;
+    if (board?.status !== 'active') return;
+    const mine =
+      board.currentSeatId === view.self.id || board.awaitingColorChoiceFrom === view.self.id;
+    if (!mine) return;
+    const player = players.find((p) => p.id === view.self.id);
+    if (player === undefined) return;
+    void emitAck(player.socket, 'game:action', { action: chooseMove(view) });
+  };
+
+  for (const player of players) {
+    const onView = (payload: { view: PlayerView | { kind: 'spectator' } }): void => {
+      if (payload.view.kind === 'player') {
+        act(payload.view);
+      }
+    };
+    player.socket.on('game:started', onView);
+    player.socket.on('game:delta', onView);
+    teardown.push(() => {
+      player.socket.off('game:started', onView);
+      player.socket.off('game:delta', onView);
+    });
+  }
+
+  return {
+    stop: () => {
+      for (const fn of teardown) fn();
+    },
+  };
+}

@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     globals: true,
     include: ['src/**/*.test.ts'],
-    // Integration tests spin up a real server and socket clients; give them room.
+    // Integration tests spin up a real server, real socket clients, and real
+    // timers. Running the files in parallel makes the timing flaky, so don't.
+    fileParallelism: false,
     testTimeout: 15_000,
     hookTimeout: 15_000,
     coverage: {
