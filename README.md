@@ -20,15 +20,14 @@ behind it.
 ```
 packages/
   engine/       Pure game logic. No network, no I/O, no framework. Fully tested.
+  contracts/    Shared zod schemas, socket event maps, and redacted view shapes.
 apps/
-  server/       Express + Socket.IO. Room lifecycle, move validation, persistence.
-  web/          React + Vite client.
-packages/
-  contracts/    Shared zod schemas and types for socket events.
+  server/       Express + Socket.IO. Rooms, server-authoritative moves, reconnect.
+  web/          React + Vite client. Lands in the next milestone.
 ```
 
-`apps/` and `packages/contracts` land in later milestones. Each is added in its own
-pull request.
+`apps/web` and persistence (Postgres, match history) land in later milestones.
+Each is added in its own pull request.
 
 ## Prerequisites
 
