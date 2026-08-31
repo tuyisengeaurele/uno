@@ -60,4 +60,33 @@ describe('createRng', () => {
     // sits well under that.
     expect(chiSquare).toBeLessThan(27.877);
   });
+
+  it('exposes a state value that moves as the sequence advances', () => {
+    const rng = createRng(123);
+    const before = rng.state;
+    rng.next();
+    expect(typeof rng.state).toBe('number');
+    expect(rng.state).not.toBe(before);
+  });
+
+  it('resumes exactly from a saved state', () => {
+    const original = createRng(555);
+    for (let i = 0; i < 3; i += 1) {
+      original.next();
+    }
+    const saved = original.state;
+
+    const resumed = createRng(555, saved);
+    const originalTail = Array.from({ length: 5 }, () => original.next());
+    const resumedTail = Array.from({ length: 5 }, () => resumed.next());
+    expect(resumedTail).toEqual(originalTail);
+  });
+
+  it('ignores the seed when a resume state is given', () => {
+    const a = createRng(1);
+    a.next();
+    const fromA = createRng(999, a.state);
+    const alsoFromA = createRng(1, a.state);
+    expect(fromA.next()).toBe(alsoFromA.next());
+  });
 });

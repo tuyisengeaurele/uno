@@ -8,14 +8,21 @@ export interface Rng {
   next(): number;
   /** An integer in [0, maxExclusive). `maxExclusive` must be at least 1. */
   int(maxExclusive: number): number;
+  /**
+   * The current internal state. Pass it back to `createRng` as the second
+   * argument to resume the sequence exactly, so a game's RNG can be persisted
+   * alongside its state.
+   */
+  readonly state: number;
 }
 
 /**
  * mulberry32. Fast, tiny, and good enough for shuffling a card deck. Not for
- * anything that needs cryptographic randomness.
+ * anything that needs cryptographic randomness. Pass `resumeFrom` (a value read
+ * from `rng.state`) to continue a sequence that was persisted earlier.
  */
-export function createRng(seed: number): Rng {
-  let state = seed >>> 0;
+export function createRng(seed: number, resumeFrom?: number): Rng {
+  let state = (resumeFrom ?? seed) >>> 0;
 
   const next = (): number => {
     state = (state + 0x6d2b79f5) | 0;
@@ -31,6 +38,9 @@ export function createRng(seed: number): Rng {
         throw new RangeError(`int() needs a positive integer bound, got ${String(maxExclusive)}`);
       }
       return Math.floor(next() * maxExclusive);
+    },
+    get state(): number {
+      return state;
     },
   };
 }
