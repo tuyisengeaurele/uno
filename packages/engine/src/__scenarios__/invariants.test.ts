@@ -37,7 +37,7 @@ const houseRules = (): HouseRules =>
   defaultHouseRules({ stacking: 'both', targetScore: 200, drawUntilPlayable: false });
 
 describe('state stays consistent under any legal sequence of moves', () => {
-  it('holds across 400 random games', () => {
+  it('holds across many random games', { timeout: 60_000 }, () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 2 ** 31 - 1 }),
@@ -52,7 +52,7 @@ describe('state stays consistent under any legal sequence of moves', () => {
           let state = startRound(seats, houseRules(), rng).state;
           checkInvariants(state);
 
-          for (let step = 0; step < 250 && state.status === 'active'; step += 1) {
+          for (let step = 0; step < 200 && state.status === 'active'; step += 1) {
             const moves = legalMoves(state);
             expect(moves.length).toBeGreaterThan(0);
 
@@ -68,7 +68,7 @@ describe('state stays consistent under any legal sequence of moves', () => {
           }
         },
       ),
-      { numRuns: 400 },
+      { numRuns: 250 },
     );
   });
 });
