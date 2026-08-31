@@ -25,9 +25,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm format:check
-      - run: pnpm lint
-      # Build first so cross-package type imports resolve to fresh declaration files.
+      # Build first so cross-package type imports resolve to fresh declaration
+      # files for the lint, typecheck, and test steps.
       - run: pnpm build
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
 
