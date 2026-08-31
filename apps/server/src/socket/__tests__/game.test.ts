@@ -129,7 +129,7 @@ describe('room:start', () => {
     expect(res.ok || res.error.code).toBe('not-host');
   });
 
-  it('deals seven cards to each player and hides opponents hands', async () => {
+  it('deals hands and shows opponents only as counts', async () => {
     const { players } = await seatedGame(2);
     const started = Promise.all(
       players.map((p) => nextEvent<{ view: PlayerView }>(p.socket, 'game:started')),
@@ -138,12 +138,12 @@ describe('room:start', () => {
     const views = await started;
 
     for (const { view } of views) {
-      expect(view.self.hand).toHaveLength(7);
-      for (const other of view.players) {
-        if (other.id !== view.self.id) {
-          expect(other.handCount).toBe(7);
-        }
-      }
+      // Seven cards, or nine if the flipped first card was a Draw Two.
+      expect(view.self.hand.length).toBeGreaterThanOrEqual(7);
+      expect(view.self.hand.length).toBeLessThanOrEqual(9);
+      const opponent = view.players.find((p) => p.id !== view.self.id);
+      expect(opponent?.handCount).toBeGreaterThanOrEqual(7);
+      expect(opponent).not.toHaveProperty('hand');
     }
   });
 });
