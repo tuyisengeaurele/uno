@@ -22,10 +22,15 @@ export interface AppHandle {
   close: () => Promise<void>;
 }
 
-export function createApp(config: Config, logger: Logger): AppHandle {
+export interface AppOverrides {
+  /** Swap the turn-timer implementation, e.g. a fast scheduler in tests. */
+  turnTimers?: TurnTimers;
+}
+
+export function createApp(config: Config, logger: Logger, overrides: AppOverrides = {}): AppHandle {
   const store = createInMemoryRoomStore();
   const tokens = createTokenRegistry();
-  const turnTimers = createTurnTimers();
+  const turnTimers = overrides.turnTimers ?? createTurnTimers();
 
   const httpServer = createServer(createHttpApp({ store, config, logger }));
   const io: UnoServer = new Server(httpServer, {

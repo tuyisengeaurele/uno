@@ -194,6 +194,80 @@ describe('game:action', () => {
   });
 });
 
+describe('the turn timer', () => {
+  it('auto-plays a seat that runs out of time', async () => {
+    await server.close();
+    server = await startTestServer({ maxTurnTimerMs: 60 });
+
+    const { players } = await seatedGame(2);
+    // Turn the timer on for this room.
+    await emitAck(players[0]!.socket, 'room:updateSettings', {
+      houseRules: {
+        stacking: 'off',
+        drawUntilPlayable: false,
+        playDrawnCard: true,
+        jumpIn: false,
+        unoPenalty: 2,
+        wildFourChallenge: true,
+        targetScore: 500,
+        firstCardRule: 'official',
+      },
+      turnTimerSeconds: 15,
+    });
+
+    const started = Promise.all(
+      players.map((p) => nextEvent<{ view: PlayerView }>(p.socket, 'game:started')),
+    );
+    await emitAck(players[0]!.socket, 'room:start');
+    const views = await started;
+    const firstOnClock = views[0]?.view.board?.currentSeatId;
+
+    // Let both players sit idle through several turns of auto-play.
+    const autoSeats: string[] = [];
+    players[0]!.socket.on('game:delta', (payload) => {
+      if (payload.autoPlayed !== undefined) {
+        autoSeats.push(payload.autoPlayed);
+      }
+    });
+    await new Promise((r) => setTimeout(r, 700));
+
+    expect(autoSeats.length).toBeGreaterThanOrEqual(3);
+    expect(autoSeats[0]).toBe(firstOnClock);
+    // The clock alternates between the two seats as turns pass.
+    expect(new Set(autoSeats).size).toBe(2);
+  });
+
+  it('does not arm or auto-play when the timer is off', async () => {
+    await server.close();
+    server = await startTestServer({ maxTurnTimerMs: 40 });
+
+    const host = await connected(server.url);
+    clients.push(host);
+    const create = await emitAck<{ code: string; view: PlayerView }>(host, 'room:create', {
+      name: 'P0',
+      turnTimerSeconds: null,
+    });
+    if (!create.ok) throw new Error(create.error.code);
+    const guest = await connected(server.url);
+    clients.push(guest);
+    await emitAck(guest, 'room:join', { code: create.data.code, name: 'P1' });
+
+    let sawTimer = false;
+    let sawAuto = false;
+    host.on('turn:timer', () => {
+      sawTimer = true;
+    });
+    host.on('game:delta', (payload) => {
+      if (payload.autoPlayed !== undefined) sawAuto = true;
+    });
+
+    await emitAck(host, 'room:start');
+    await new Promise((r) => setTimeout(r, 150));
+    expect(sawTimer).toBe(false);
+    expect(sawAuto).toBe(false);
+  });
+});
+
 describe('room:updateSettings', () => {
   it('lets the host change the turn timer and rejects a non-host', async () => {
     const { code, players } = await seatedGame(2);

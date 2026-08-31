@@ -1,4 +1,4 @@
-import { canPlayOn, currentPlayer, type GameAction } from '@uno/engine';
+import { currentPlayer } from '@uno/engine';
 
 import { applyPlayerAction } from '../game/session.js';
 import type { Room } from '../rooms/room.js';
@@ -73,56 +73,42 @@ export function clearTurnTimer(ctx: HandlerContext, code: string): void {
   ctx.turnTimers.clear(code);
 }
 
-/** Play the current seat's turn when their timer runs out. */
+/**
+ * Play the current seat's turn when their timer runs out: draw a card, and if
+ * that leaves a drawn card still in their hands, pass it. Drawing never wins a
+ * round, so this cannot end the game.
+ */
 async function autoPlay(ctx: HandlerContext, code: string): Promise<void> {
   const room = ctx.store.get(code);
+  /* c8 ignore next 3 -- the timer is cleared when a round ends; this guards a race */
   if (room?.game?.status !== 'active') {
     return;
   }
+  const seatId = currentPlayer(room.game).id;
 
-  const game = room.game;
-  const seatId = currentPlayer(game).id;
-  const player = game.players.find((p) => p.id === seatId);
-  /* c8 ignore next 3 -- the current player is always in the game */
-  if (player === undefined) {
+  const drew = applyPlayerAction(room, seatId, { type: 'draw', playerId: seatId }, ctx.now());
+  /* c8 ignore next 3 -- a server-issued draw is always legal on the current turn */
+  if ('error' in drew) {
     return;
   }
+  let current = drew.room;
+  ctx.store.save(current);
+  await broadcastDelta(ctx.io, current, drew.events, seatId);
 
-  const top = game.discardPile.at(-1);
-  const activeColor = game.activeColor;
-  const hasPlayable =
-    game.pendingDraw === 0 &&
-    top !== undefined &&
-    activeColor !== null &&
-    player.hand.some((card) => canPlayOn(card, top, activeColor));
-
-  // Draw. If that leaves an unplayed card in hand and nothing forced, pass.
-  const moves: GameAction[] = hasPlayable
-    ? [
-        { type: 'draw', playerId: seatId },
-        { type: 'pass', playerId: seatId },
-      ]
-    : [{ type: 'draw', playerId: seatId }];
-
-  let current = room;
-  for (const move of moves) {
-    const outcome = applyPlayerAction(current, seatId, move, ctx.now());
-    if ('error' in outcome) {
-      break;
-    }
-    current = outcome.room;
-    ctx.store.save(current);
-    await broadcastDelta(ctx.io, current, outcome.events, seatId);
-    if (outcome.roundEnded !== null || outcome.matchEnded !== null) {
-      if (outcome.roundEnded !== null) {
-        ctx.io.to(code).emit('game:roundEnded', outcome.roundEnded);
-      }
-      if (outcome.matchEnded !== null) {
-        ctx.io.to(code).emit('game:matchEnded', outcome.matchEnded);
-      }
-      ctx.turnTimers.clear(code);
+  if (current.game?.drawnCard?.playerId === seatId) {
+    const passed = applyPlayerAction(
+      current,
+      seatId,
+      { type: 'pass', playerId: seatId },
+      ctx.now(),
+    );
+    /* c8 ignore next 3 -- passing a just-drawn card is always legal */
+    if ('error' in passed) {
       return;
     }
+    current = passed.room;
+    ctx.store.save(current);
+    await broadcastDelta(ctx.io, current, passed.events, seatId);
   }
 
   armTurnTimer(ctx, current);

@@ -11,8 +11,9 @@ import { canPlayOn, type CardColor } from '@uno/engine';
 import { pino } from 'pino';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 
-import { createApp, type AppHandle } from '../app.js';
+import { createApp, type AppHandle, type AppOverrides } from '../app.js';
 import type { Config } from '../config.js';
+import { createTurnTimers } from '../turns/timer.js';
 
 export type TestClient = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -20,17 +21,34 @@ export interface TestServer extends AppHandle {
   url: string;
 }
 
-export async function startTestServer(overrides: Partial<Config> = {}): Promise<TestServer> {
+export interface TestServerOptions {
+  config?: Partial<Config>;
+  /** Cap every turn timer at this many ms so timeout tests run fast. */
+  maxTurnTimerMs?: number;
+}
+
+export async function startTestServer(options: TestServerOptions = {}): Promise<TestServer> {
   const config: Config = {
     nodeEnv: 'test',
     port: 0,
     corsOrigins: ['http://localhost:5173'],
     logLevel: 'silent',
     roomIdleMs: 3_600_000,
-    ...overrides,
+    ...options.config,
   };
 
-  const app = createApp(config, pino({ level: 'silent' }));
+  const appOverrides: AppOverrides = {};
+  if (options.maxTurnTimerMs !== undefined) {
+    const cap = options.maxTurnTimerMs;
+    appOverrides.turnTimers = createTurnTimers({
+      set: (fn, ms) => setTimeout(fn, Math.min(ms, cap)),
+      clear: (handle) => {
+        clearTimeout(handle as ReturnType<typeof setTimeout>);
+      },
+    });
+  }
+
+  const app = createApp(config, pino({ level: 'silent' }), appOverrides);
   await new Promise<void>((resolve) => {
     app.httpServer.listen(0, resolve);
   });
