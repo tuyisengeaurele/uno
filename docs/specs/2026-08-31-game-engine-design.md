@@ -85,17 +85,17 @@ asserts against them, which is more precise than only checking end state.
 
 ### Internal modules
 
-| Module | Responsibility |
-|---|---|
-| `cards.ts` | 108-card deck definition, scoring values, `canPlayOn`, `isWild`, `isActionCard` |
-| `rng.ts` | seeded PRNG interface and implementation |
-| `deck.ts` | build, Fisher-Yates shuffle, deal, draw, reshuffle the discard pile into the draw pile when it empties (top card stays down) |
-| `state.ts` | `GameState`, `PlayerState`, per-player UNO tracking |
-| `config.ts` | `HouseRules` |
-| `turn.ts` | advance, skip, reverse; in a two-player game Reverse acts as Skip |
-| `validate.ts` | per-action legality, returns a typed `GameError` |
-| `reducer.ts` | `applyAction` dispatch, event emission |
-| `scoring.ts` | round-end hand scoring, match target check |
+| Module        | Responsibility                                                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `cards.ts`    | 108-card deck definition, scoring values, `canPlayOn`, `isWild`, `isActionCard`                                              |
+| `rng.ts`      | seeded PRNG interface and implementation                                                                                     |
+| `deck.ts`     | build, Fisher-Yates shuffle, deal, draw, reshuffle the discard pile into the draw pile when it empties (top card stays down) |
+| `state.ts`    | `GameState`, `PlayerState`, per-player UNO tracking                                                                          |
+| `config.ts`   | `HouseRules`                                                                                                                 |
+| `turn.ts`     | advance, skip, reverse; in a two-player game Reverse acts as Skip                                                            |
+| `validate.ts` | per-action legality, returns a typed `GameError`                                                                             |
+| `reducer.ts`  | `applyAction` dispatch, event emission                                                                                       |
+| `scoring.ts`  | round-end hand scoring, match target check                                                                                   |
 
 Each module is testable on its own. `reducer.ts` is the only one that composes the
 others.
@@ -105,16 +105,16 @@ others.
 All configurable from the room settings screen in a later milestone. Defaults
 match the official rules with the common tournament restrictions.
 
-| Rule | Default | Notes |
-|---|---|---|
-| Stacking +2 / +4 | off | Official. When on, config controls whether +4 stacks on +2 |
-| Draw until playable | off | House rule. When off, a player draws exactly one card |
-| Play the drawn card immediately | on | If the drawn card is playable the player may play it this turn |
-| Jump-in | off | House rule, out of scope for the engine milestone but the state model leaves room |
-| UNO penalty | draw 2 | Configurable to 4 |
-| Wild Draw Four challenge | on | |
-| Target score (match mode) | 500 | First player to reach it wins the match |
-| First card rules | `official` | See below |
+| Rule                            | Default    | Notes                                                                             |
+| ------------------------------- | ---------- | --------------------------------------------------------------------------------- |
+| Stacking +2 / +4                | off        | Official. When on, config controls whether +4 stacks on +2                        |
+| Draw until playable             | off        | House rule. When off, a player draws exactly one card                             |
+| Play the drawn card immediately | on         | If the drawn card is playable the player may play it this turn                    |
+| Jump-in                         | off        | House rule, out of scope for the engine milestone but the state model leaves room |
+| UNO penalty                     | draw 2     | Configurable to 4                                                                 |
+| Wild Draw Four challenge        | on         |                                                                                   |
+| Target score (match mode)       | 500        | First player to reach it wins the match                                           |
+| First card rules                | `official` | See below                                                                         |
 
 ## Three rules where the physical game is ambiguous
 

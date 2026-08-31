@@ -19,9 +19,11 @@ tests. Milestone tagged `v0.1.0` when the engine suite is green.
 ### Task 1: workspace root
 
 **Files:**
+
 - Create: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `.gitattributes`, `.nvmrc`
 
 **Steps:**
+
 - [ ] `.gitattributes` with `* text=auto eol=lf` so line endings are stable across Windows and Linux (CI and local dev disagree otherwise).
 - [ ] `.nvmrc` pinned to `22`.
 - [ ] Root `package.json`: private, `packageManager` field pinned to the pnpm version, workspace scripts (`lint`, `typecheck`, `test`, `build`) that fan out with `pnpm -r`. No dependencies yet beyond dev tooling added in later tasks.
@@ -32,9 +34,11 @@ tests. Milestone tagged `v0.1.0` when the engine suite is green.
 ### Task 2: linting and formatting
 
 **Files:**
+
 - Create: `eslint.config.js`, `.prettierrc`, `.prettierignore`
 
 **Steps:**
+
 - [ ] Install `eslint`, `typescript-eslint`, `eslint-config-prettier`, `prettier` at the root.
 - [ ] `eslint.config.js` (flat): `typescript-eslint` `strictTypeChecked` + `stylisticTypeChecked`, project service enabled, `eslint-config-prettier` last. Rule adjustments: allow `void` for floating promises marked intentional, error on `no-console` in `packages/**` (the engine has no business logging), error on `no-restricted-syntax` for `Math.random` and `Date.now` inside `packages/engine/src`.
 - [ ] `.prettierrc`: 100 print width, single quotes, no semicolons off (keep semicolons), trailing commas `all`.
@@ -44,9 +48,11 @@ tests. Milestone tagged `v0.1.0` when the engine suite is green.
 ### Task 3: commit hooks
 
 **Files:**
+
 - Create: `.husky/pre-commit`, `.husky/commit-msg`, `commitlint.config.cjs`, `.lintstagedrc.json`
 
 **Steps:**
+
 - [ ] Install `husky`, `lint-staged`, `@commitlint/cli`, `@commitlint/config-conventional`.
 - [ ] `commitlint.config.cjs` extends config-conventional, `type-enum` locked to `feat, fix, chore, refactor, test, docs, ci, perf, build, style`.
 - [ ] `.lintstagedrc.json`: run `eslint --fix` and `prettier --write` on staged `*.{ts,tsx,js,cjs}`, `prettier --write` on `*.{json,md,yml}`.
@@ -58,9 +64,11 @@ tests. Milestone tagged `v0.1.0` when the engine suite is green.
 ### Task 4: CI
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Steps:**
+
 - [ ] Triggers: `push` to `main`, `pull_request`.
 - [ ] One job, matrix on Node 22. Steps: checkout, pnpm/action-setup, setup-node with pnpm cache, `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - [ ] Second job `audit`: `pnpm audit --audit-level=high`, non-blocking for now via `continue-on-error: true` with a note in the README that findings are triaged weekly. This gets tightened when dependencies stabilize.
@@ -69,9 +77,11 @@ tests. Milestone tagged `v0.1.0` when the engine suite is green.
 ### Task 5: README
 
 **Files:**
+
 - Create: `README.md`, `.env.example`
 
 **Steps:**
+
 - [ ] README sections: what this is (two paragraphs, no marketing voice), prerequisites (Node 22, pnpm, Docker for later milestones), install, common scripts, repo layout, the reasoning behind pnpm / Socket.IO / Zustand / in-memory store / Fly.io + Vercel (one short paragraph each, pulled from the spec), how to run engine tests, contribution notes (conventional commits, branch naming).
 - [ ] `.env.example` with commented placeholders for `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SENTRY_DSN`, `CORS_ORIGIN`. Real values never committed.
 - [ ] Commit: `docs: add readme and env example`
@@ -96,9 +106,11 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 7: engine package skeleton
 
 **Files:**
+
 - Create: `packages/engine/package.json`, `packages/engine/tsconfig.json`, `packages/engine/vitest.config.ts`, `packages/engine/src/index.ts` (empty export), `packages/engine/README.md`
 
 **Steps:**
+
 - [ ] `package.json` scripts: `test` (`vitest run`), `test:watch` (`vitest`), `typecheck` (`tsc --noEmit`), `build` (`tsc -p tsconfig.build.json`).
 - [ ] Install `vitest`, `@vitest/coverage-v8`, `fast-check` as dev deps.
 - [ ] `vitest.config.ts`: coverage provider v8, `all: true`, include `src/**`, thresholds `branches: 95, functions: 95, lines: 95, statements: 95`.
@@ -108,14 +120,17 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 8: card model and deck definition
 
 **Files:**
+
 - Create: `packages/engine/src/cards.ts`, `packages/engine/src/cards.test.ts`
 
 **Types:**
+
 - `CardColor = 'red' | 'yellow' | 'green' | 'blue'`
 - `CardKind` covers `'number'`, `'skip'`, `'reverse'`, `'draw-two'`, `'wild'`, `'wild-draw-four'`
 - `Card`: discriminated by kind. Number cards have `color` and `value: 0..9`. Skip/reverse/draw-two have `color`. Wilds have no color. Every card has a stable `id: string`.
 
 **Behaviors to test:**
+
 - [ ] `buildDeck()` returns 108 cards.
 - [ ] Exactly one 0 per color, two each of 1 through 9 per color.
 - [ ] Two each of skip, reverse, draw-two per color.
@@ -126,19 +141,23 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 - [ ] `canPlayOn(card, topCard, activeColor)`: matches color, matches number value, matches action kind, wild always plays, wild-draw-four always plays (challenge is separate), a wild on top uses `activeColor` not the card's absent color.
 
 **Steps per behavior:** test -> fail -> implement -> pass. Commit after the deck construction tests pass, then again after the helpers.
+
 - [ ] Commit: `feat(engine): add card model and standard 108-card deck`
 - [ ] Commit: `feat(engine): add card matching and scoring helpers`
 
 ### Task 9: seeded RNG
 
 **Files:**
+
 - Create: `packages/engine/src/rng.ts`, `packages/engine/src/rng.test.ts`
 
 **Types:**
+
 - `Rng`: `{ next(): number /* [0,1) */; int(maxExclusive: number): number }`
 - `createRng(seed: number): Rng` using mulberry32.
 
 **Behaviors to test:**
+
 - [ ] Same seed produces the same sequence.
 - [ ] Different seeds diverge.
 - [ ] `int(n)` stays in `[0, n)` over a large sample.
@@ -148,14 +167,17 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 10: deck operations
 
 **Files:**
+
 - Create: `packages/engine/src/deck.ts`, `packages/engine/src/deck.test.ts`
 
 **Functions:**
+
 - `shuffle(cards, rng)`: Fisher-Yates, returns a new array, does not mutate input.
 - `deal(deck, playerCount, handSize)`: returns `{ hands: Card[][], drawPile: Card[] }`.
 - `drawCards(drawPile, discardPile, count, rng)`: returns `{ drawn, drawPile, discardPile }`. When the draw pile runs out, shuffle everything in the discard pile except the top card back into the draw pile and continue.
 
 **Behaviors to test:**
+
 - [ ] `shuffle` is a permutation (same multiset), input untouched, deterministic for a seed.
 - [ ] `deal` for 2 players, hand size 7, leaves 94 in the draw pile; every hand has 7.
 - [ ] `drawCards` for a count smaller than the pile just moves cards.
@@ -166,15 +188,18 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 11: game state and config
 
 **Files:**
+
 - Create: `packages/engine/src/config.ts`, `packages/engine/src/state.ts`, `packages/engine/src/config.test.ts`
 
 **Types:**
+
 - `HouseRules` with every field from the spec table. `defaultHouseRules()` returns the documented defaults.
 - `StackingRule = 'off' | 'draw-two' | 'draw-four' | 'both'`
 - `PlayerState`: `id`, `name`, `hand: Card[]`, `hasCalledUno: boolean`, `saidUnoAtHandSize: number | null`
 - `GameState`: `players`, `currentPlayerIndex`, `direction: 1 | -1`, `drawPile`, `discardPile`, `activeColor: CardColor | null`, `pendingDraw: number`, `pendingDrawKind: 'draw-two' | 'draw-four' | null`, `pendingWildFour: { playerId: string; colorInPlayBefore: CardColor; playerHadColorMatch: boolean } | null`, `unoWindow: { playerId: string } | null`, `status: 'active' | 'round-over' | 'match-over'`, `roundWinnerId: string | null`, `scores: Record<string, number>`, `config: HouseRules`, `rngState` note: the reducer takes the rng on `ctx`, state does not carry it.
 
 **Behaviors to test:**
+
 - [ ] `defaultHouseRules()` matches the spec table exactly.
 - [ ] `HouseRules` overrides merge shallowly over the defaults.
 - [ ] `GameState` round-trips through `JSON.parse(JSON.stringify(state))` unchanged (guards against accidental `Map`/`Set`/class use).
@@ -183,12 +208,15 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 12: round setup
 
 **Files:**
+
 - Create: `packages/engine/src/setup.ts`, `packages/engine/src/setup.test.ts`
 
 **Functions:**
+
 - `startRound(players: {id,name}[], config, rng, scores?)`: builds and shuffles the deck, deals 7 each, flips the first card, applies `firstCardRules`, returns `{ state, events }`.
 
 **Behaviors to test:**
+
 - [ ] 2 to 10 players accepted; fewer than 2 or more than 10 returns an error.
 - [ ] Each player holds 7 cards; card count totals 108.
 - [ ] First card a number: `activeColor` is its color, `currentPlayerIndex` is 0.
@@ -203,14 +231,17 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 13: turn order
 
 **Files:**
+
 - Create: `packages/engine/src/turn.ts`, `packages/engine/src/turn.test.ts`
 
 **Functions:**
+
 - `nextIndex(current, direction, playerCount, step = 1)`
 - `advanceTurn(state, { skip?: boolean })`: returns the next `currentPlayerIndex` honoring direction and skip.
 - `applyReverse(state)`: flips direction; documented that the caller handles the 2-player case by also skipping.
 
 **Behaviors to test:**
+
 - [ ] `nextIndex` wraps in both directions.
 - [ ] `advanceTurn` with `skip` jumps two seats.
 - [ ] `applyReverse` flips `1` to `-1` and back.
@@ -220,15 +251,18 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 14: play a card
 
 **Files:**
+
 - Create: `packages/engine/src/validate.ts`, `packages/engine/src/reducer.ts`, `packages/engine/src/errors.ts`, `packages/engine/src/reducer.test.ts`
 
 **Types:**
+
 - `GameAction` union starts here: `{ type: 'play-card'; playerId: string; cardId: string; chosenColor?: CardColor }`
 - `GameError`: `{ code: GameErrorCode; message: string }` with codes like `not-your-turn`, `card-not-in-hand`, `illegal-play`, `color-required`, `color-not-allowed`.
 - `ActionResult` as in the spec.
 - `EngineContext = { rng: Rng }`
 
 **Behaviors to test (play-card only):**
+
 - [ ] Playing out of turn returns `not-your-turn`.
 - [ ] Playing a card not in hand returns `card-not-in-hand`.
 - [ ] Playing a card that does not match color, value, or kind returns `illegal-play`.
@@ -245,14 +279,17 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 15: drawing
 
 **Files:**
+
 - Modify: `packages/engine/src/reducer.ts`, `packages/engine/src/validate.ts`, `packages/engine/src/reducer.test.ts`
 
 **Actions added:**
+
 - `{ type: 'draw'; playerId: string }`
 - `{ type: 'play-drawn'; playerId: string; cardId: string; chosenColor?: CardColor }`
 - `{ type: 'pass'; playerId: string }`
 
 **Behaviors to test:**
+
 - [ ] `draw` out of turn returns `not-your-turn`.
 - [ ] `draw` with `drawUntilPlayable: false`: exactly one card enters the hand. If it is playable the player may `play-drawn` or `pass`; if not, the turn auto-advances and `pass` is not required.
 - [ ] `draw` with `drawUntilPlayable: true`: cards are drawn until one is playable (or the piles are exhausted), only the last may be played.
@@ -265,9 +302,11 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 16: stacking +2 and +4
 
 **Files:**
+
 - Modify: `packages/engine/src/reducer.ts`, `packages/engine/src/validate.ts`, `packages/engine/src/reducer.test.ts`
 
 **Behaviors to test:**
+
 - [ ] Stacking `off`: a draw-two makes the next player draw 2 and lose their turn immediately; `pendingDraw` returns to 0.
 - [ ] Stacking `draw-two`: the next player may play another draw-two, `pendingDraw` becomes 4, turn passes without drawing.
 - [ ] A player facing a stack who cannot or will not continue draws the whole `pendingDraw` and is skipped.
@@ -280,13 +319,16 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 17: UNO call and catch
 
 **Files:**
+
 - Modify: `packages/engine/src/reducer.ts`, `packages/engine/src/reducer.test.ts`
 
 **Actions added:**
+
 - `{ type: 'call-uno'; playerId: string }`
 - `{ type: 'catch-unfair-uno'; accuserId: string; targetId: string }`
 
 **Behaviors to test:**
+
 - [ ] A player at 2 cards may `call-uno` pre-emptively; when they play to 1 card no penalty is possible.
 - [ ] A player who plays to 1 card without calling opens `unoWindow` for that player.
 - [ ] `catch-unfair-uno` inside the window: the target draws the configured penalty (2 by default), `UnoPenaltyApplied` emitted, window closes.
@@ -299,12 +341,15 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 18: Wild Draw Four challenge
 
 **Files:**
+
 - Modify: `packages/engine/src/reducer.ts`, `packages/engine/src/reducer.test.ts`
 
 **Action added:**
+
 - `{ type: 'challenge-wild-four'; challengerId: string }`
 
 **Behaviors to test:**
+
 - [ ] When a wild-draw-four is played, `pendingWildFour` records `colorInPlayBefore` and whether the player held a matching-color card.
 - [ ] The next player may `challenge-wild-four` before drawing or playing.
 - [ ] Challenge succeeds (player did hold a matching color): the player who played it draws 4, `pendingDraw` clears, the challenger takes their normal turn, `ChallengeResolved` with `upheld: true`.
@@ -317,14 +362,17 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 19: scoring and match mode
 
 **Files:**
+
 - Create: `packages/engine/src/scoring.ts`, `packages/engine/src/scoring.test.ts`
 - Modify: `packages/engine/src/reducer.ts`
 
 **Functions:**
+
 - `scoreRound(state)`: sums every non-winner hand by `cardValue`, adds it to the winner's score.
 - `startNextRound(state, rng)`: rotates the starting player, re-deals, keeps `scores`.
 
 **Behaviors to test:**
+
 - [ ] Round score sums opponents' hands onto the winner.
 - [ ] Reaching `targetScore` sets `status: 'match-over'` and emits `MatchEnded`.
 - [ ] Below target, `startNextRound` deals a fresh round and preserves scores.
@@ -334,10 +382,12 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 20: public API
 
 **Files:**
+
 - Modify: `packages/engine/src/index.ts`
 - Create: `packages/engine/src/index.test.ts`
 
 **Steps:**
+
 - [ ] Export `applyAction`, `startRound`, `startNextRound`, `scoreRound`, `createRng`, `defaultHouseRules`, `buildDeck`, `cardValue`, and every public type.
 - [ ] Do not export internal helpers (`validate`, `turn` internals).
 - [ ] Test: importing from the package root gives a working `startRound` -> `applyAction` loop for a tiny scripted game.
@@ -346,12 +396,15 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 21: scenario tests
 
 **Files:**
+
 - Create: `packages/engine/src/__scenarios__/harness.ts`, `packages/engine/src/__scenarios__/games.test.ts`
 
 **Harness:**
+
 - `playGame(seed, players, config, actions)`: starts a round, applies each action in order, throws with context if any returns `ok: false`, returns the final state plus the full event list.
 
 **Scenarios to script and assert:**
+
 - [ ] A complete 2-player game from deal to a round win.
 - [ ] A 4-player game where a reverse and a skip both fire.
 - [ ] A stacking chain of three draw-twos resolved by a draw.
@@ -367,11 +420,13 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 22: property-based invariants
 
 **Files:**
+
 - Create: `packages/engine/src/__scenarios__/invariants.test.ts`
 
 **Approach:** a fast-check `Arbitrary` that, given a seed, generates a random but always-legal sequence of actions by asking the engine for legal moves at each step and picking one. Run 500 sequences.
 
 **Invariants to assert after every step:**
+
 - [ ] Total card count across all hands, the draw pile, and the discard pile equals 108.
 - [ ] No card `id` appears in two places.
 - [ ] `currentPlayerIndex` is in `[0, playerCount)`.
@@ -384,9 +439,11 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ### Task 23: tighten coverage and finish
 
 **Files:**
+
 - Modify: `packages/engine/vitest.config.ts`, `.github/workflows/ci.yml`
 
 **Steps:**
+
 - [ ] Raise coverage thresholds to `branches: 100` where practical; add `/* c8 ignore next */` only on genuinely unreachable defensive branches with a one-line reason.
 - [ ] Confirm `pnpm --filter @uno/engine test` is green with coverage passing.
 - [ ] Push `feat/game-engine`, open PR, merge.
@@ -398,6 +455,7 @@ descriptive name. Test files sit next to the source (`cards.ts` ->
 ## Self-review
 
 **Spec coverage:**
+
 - 108-card deck, deal 7, draw/discard: Tasks 8, 10, 12.
 - Turn order, reversal, skip, draw-two/four with color: Tasks 13, 14, 16.
 - Stacking configurable per room: Task 16.
