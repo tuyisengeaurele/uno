@@ -14,6 +14,7 @@ import type { Logger } from '../logger.js';
 import type { Room } from '../rooms/room.js';
 import type { RoomStore } from '../rooms/store.js';
 import type { TokenRegistry } from '../rooms/tokens.js';
+import type { TurnTimers } from '../turns/timer.js';
 import type { RateLimiter } from './rate-limit.js';
 
 type NoProps = Record<string, never>;
@@ -28,6 +29,7 @@ export interface SocketDeps {
   logger: Logger;
   config: Config;
   rateLimiters: { create: RateLimiter; reconnect: RateLimiter };
+  turnTimers: TurnTimers;
   now: () => number;
 }
 

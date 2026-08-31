@@ -1,6 +1,13 @@
 import type { AddressInfo } from 'node:net';
 
-import type { ClientToServerEvents, Result, ServerToClientEvents } from '@uno/contracts';
+import type {
+  ClientToServerEvents,
+  GameActionInput,
+  PlayerView,
+  Result,
+  ServerToClientEvents,
+} from '@uno/contracts';
+import { canPlayOn, type CardColor } from '@uno/engine';
 import { pino } from 'pino';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 
@@ -76,4 +83,68 @@ export function closeClients(...clients: TestClient[]): void {
   for (const client of clients) {
     client.close();
   }
+}
+
+const COLORS: CardColor[] = ['red', 'yellow', 'green', 'blue'];
+
+function preferredColor(hand: PlayerView['self']['hand']): CardColor {
+  for (const color of COLORS) {
+    if (hand.some((card) => 'color' in card && card.color === color)) {
+      return color;
+    }
+  }
+  return 'red';
+}
+
+/**
+ * Pick one legal action for a player, using only what their view exposes. This
+ * is exactly the information a real client would have.
+ */
+export function chooseMove(view: PlayerView): GameActionInput {
+  const { board, self } = view;
+  if (board === null) {
+    throw new Error('no board to move against');
+  }
+  const id = self.id;
+
+  if (board.awaitingColorChoiceFrom === id) {
+    return { type: 'choose-color', playerId: id, color: preferredColor(self.hand) };
+  }
+
+  if (self.drawnCard !== null) {
+    return self.drawnCard.playable
+      ? {
+          type: 'play-drawn',
+          playerId: id,
+          cardId: self.drawnCard.cardId,
+          ...wildColor(self, self.drawnCard.cardId),
+        }
+      : { type: 'pass', playerId: id };
+  }
+
+  if (board.pendingDraw > 0) {
+    return { type: 'draw', playerId: id };
+  }
+
+  const activeColor = board.activeColor;
+  if (activeColor !== null) {
+    const playable = self.hand.find((card) => canPlayOn(card, board.discardTop, activeColor));
+    if (playable !== undefined) {
+      return {
+        type: 'play-card',
+        playerId: id,
+        cardId: playable.id,
+        ...wildColor(self, playable.id),
+      };
+    }
+  }
+
+  return { type: 'draw', playerId: id };
+}
+
+function wildColor(self: PlayerView['self'], cardId: string): { chosenColor?: CardColor } {
+  const card = self.hand.find((c) => c.id === cardId);
+  return card !== undefined && (card.kind === 'wild' || card.kind === 'wild-draw-four')
+    ? { chosenColor: preferredColor(self.hand) }
+    : {};
 }

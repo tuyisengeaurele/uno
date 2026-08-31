@@ -72,12 +72,15 @@ export function toBoardView(room: Room): BoardView | null {
 
 export function toPlayerView(room: Room, seatId: string): PlayerView {
   const mine = room.game?.players.find((player) => player.id === seatId);
+  const drawn = room.game?.drawnCard ?? null;
+  const myDrawn = drawn?.playerId === seatId ? drawn : null;
   return {
     kind: 'player',
     self: {
       id: seatId,
       hand: mine?.hand ?? [],
       hasCalledUno: mine?.hasCalledUno ?? false,
+      drawnCard: myDrawn === null ? null : { cardId: myDrawn.cardId, playable: myDrawn.playable },
     },
     players: toPublicPlayers(room),
     board: toBoardView(room),

@@ -25,9 +25,17 @@ export interface BoardView {
   roundWinnerId: string | null;
 }
 
+export interface SelfView {
+  id: string;
+  hand: Card[];
+  hasCalledUno: boolean;
+  /** A card drawn this turn that is still yours to play or keep. */
+  drawnCard: { cardId: string; playable: boolean } | null;
+}
+
 export interface PlayerView {
   kind: 'player';
-  self: { id: string; hand: Card[]; hasCalledUno: boolean };
+  self: SelfView;
   players: PublicPlayer[];
   /** Null while the room is still in the lobby. */
   board: BoardView | null;

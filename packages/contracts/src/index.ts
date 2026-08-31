@@ -21,6 +21,7 @@ export type {
   RoomPhase,
   PublicPlayer,
   BoardView,
+  SelfView,
   PlayerView,
   SpectatorView,
   AnyView,
