@@ -129,6 +129,21 @@ describe('room:start', () => {
     expect(res.ok || res.error.code).toBe('not-host');
   });
 
+  it('is refused when there are too few players', async () => {
+    const host = await newClient();
+    const create = await emitAck<{ code: string }>(host, 'room:create', { name: 'Solo' });
+    expect(create.ok).toBe(true);
+    const res = await emitAck(host, 'room:start');
+    expect(res.ok || res.error.code).toBe('too-few-players');
+  });
+
+  it('reports room-not-found when the host room vanished', async () => {
+    const { code, players } = await seatedGame(2);
+    server.store.delete(code);
+    const res = await emitAck(players[0]!.socket, 'room:start');
+    expect(res.ok || res.error.code).toBe('room-not-found');
+  });
+
   it('deals hands and shows opponents only as counts', async () => {
     const { players } = await seatedGame(2);
     const started = Promise.all(
@@ -172,6 +187,23 @@ describe('game:action', () => {
       action: { type: 'draw', playerId: players[0]!.id },
     });
     expect(res.ok || res.error.code).toBe('not-a-player');
+  });
+
+  it('rejects a malformed action payload', async () => {
+    const { players } = await seatedGame(2);
+    await emitAck(players[0]!.socket, 'room:start');
+    const res = await emitAck(players[0]!.socket, 'game:action', { action: { type: 'nonsense' } });
+    expect(res.ok || res.error.code).toBe('invalid-payload');
+  });
+
+  it('reports room-not-found when the room vanished', async () => {
+    const { code, players } = await seatedGame(2);
+    await emitAck(players[0]!.socket, 'room:start');
+    server.store.delete(code);
+    const res = await emitAck(players[0]!.socket, 'game:action', {
+      action: { type: 'draw', playerId: players[0]!.id },
+    });
+    expect(res.ok || res.error.code).toBe('room-not-found');
   });
 
   it('rejects acting as another player and sends no delta', async () => {
@@ -222,22 +254,21 @@ describe('the turn timer', () => {
     const views = await started;
     const firstOnClock = views[0]?.view.board?.currentSeatId;
 
-    // Let both players sit idle through several turns of auto-play.
+    // Both players sit idle. The server plays for whoever is on the clock, turn
+    // after turn: a draw, plus a pass when the drawn card was playable.
     const autoSeats: string[] = [];
     await new Promise<void>((resolve) => {
       players[0]!.socket.on('game:delta', (payload) => {
         if (payload.autoPlayed !== undefined) {
           autoSeats.push(payload.autoPlayed);
-          if (autoSeats.length >= 5) resolve();
+          if (autoSeats.length >= 6) resolve();
         }
       });
     });
 
-    expect(autoSeats.length).toBeGreaterThanOrEqual(5);
     expect(autoSeats[0]).toBe(firstOnClock);
-    // The clock alternates between the two seats as turns pass.
     expect(new Set(autoSeats).size).toBe(2);
-  });
+  }, 25_000);
 
   it('does not arm or auto-play when the timer is off', async () => {
     await server.close();
@@ -301,5 +332,51 @@ describe('room:updateSettings', () => {
     });
     expect(denied.ok || denied.error.code).toBe('not-host');
     void code;
+  });
+
+  it('locks settings once the game has started', async () => {
+    const { players } = await seatedGame(2);
+    await emitAck(players[0]!.socket, 'room:start');
+    const res = await emitAck(players[0]!.socket, 'room:updateSettings', {
+      houseRules: {
+        stacking: 'off',
+        drawUntilPlayable: false,
+        playDrawnCard: true,
+        jumpIn: false,
+        unoPenalty: 2,
+        wildFourChallenge: true,
+        targetScore: 500,
+        firstCardRule: 'official',
+      },
+      turnTimerSeconds: 20,
+    });
+    expect(res.ok || res.error.code).toBe('not-in-lobby');
+  });
+
+  it('rejects a malformed settings payload', async () => {
+    const { players } = await seatedGame(2);
+    const res = await emitAck(players[0]!.socket, 'room:updateSettings', { turnTimerSeconds: 20 });
+    expect(res.ok || res.error.code).toBe('invalid-payload');
+  });
+
+  it('rejects room:nextRound from a non-host and before a round ends', async () => {
+    const { players } = await seatedGame(2);
+    await emitAck(players[0]!.socket, 'room:start');
+
+    const nonHost = await emitAck(players[1]!.socket, 'room:nextRound');
+    expect(nonHost.ok || nonHost.error.code).toBe('not-host');
+
+    const early = await emitAck(players[0]!.socket, 'room:nextRound');
+    expect(early.ok || early.error.code).toBe('no-active-round');
+  });
+
+  it('rejects room actions from someone not in a room', async () => {
+    const stray = await newClient();
+    const start = await emitAck(stray, 'room:start');
+    expect(start.ok || start.error.code).toBe('not-a-player');
+    const action = await emitAck(stray, 'game:action', {
+      action: { type: 'draw', playerId: 'nobody' },
+    });
+    expect(action.ok || action.error.code).toBe('not-a-player');
   });
 });

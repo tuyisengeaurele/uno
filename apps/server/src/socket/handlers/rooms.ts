@@ -65,12 +65,13 @@ async function handleCreate(
   });
   ctx.store.create(room);
 
+  /* c8 ignore start -- a freshly created room always has the host seat */
   const host = room.seats[0];
-  /* c8 ignore next 3 -- a freshly created room always has the host seat */
   if (host === undefined) {
     ack(fail('invalid-payload', 'room was created without a host seat'));
     return;
   }
+  /* c8 ignore stop */
 
   const playerToken = ctx.tokens.issue(code, host.id);
   ctx.socket.data = { code, seatId: host.id, spectatorId: null };
@@ -135,6 +136,7 @@ async function handleLeave(
     const room = ctx.store.get(code);
     if (room !== undefined && seatId !== null && room.phase === 'lobby') {
       const after = removeSeat(room, seatId);
+      /* c8 ignore next -- the socket owns this seat, so it is in the room */
       const seatName = seatById(room, seatId)?.name ?? '';
       if (after.seats.length === 0) {
         ctx.store.delete(code);

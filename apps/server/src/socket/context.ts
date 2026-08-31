@@ -1,7 +1,6 @@
 import type {
   AnyView,
   ClientToServerEvents,
-  ProtocolError,
   ServerToClientEvents,
   SocketData,
 } from '@uno/contracts';
@@ -9,7 +8,7 @@ import type { GameEvent } from '@uno/engine';
 import type { Server, Socket } from 'socket.io';
 
 import type { Config } from '../config.js';
-import { toPlayerView, toRoomSummary, toSpectatorView } from '../game/redact.js';
+import { toPlayerView, toSpectatorView } from '../game/redact.js';
 import type { Logger } from '../logger.js';
 import type { Room } from '../rooms/room.js';
 import type { RoomStore } from '../rooms/store.js';
@@ -40,13 +39,9 @@ export interface HandlerContext extends SocketDeps {
 export function clientIp(socket: UnoSocket): string {
   const forwarded = socket.handshake.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.length > 0) {
-    return forwarded.split(',')[0]?.trim() ?? socket.handshake.address;
+    return forwarded.replace(/,.*$/s, '').trim();
   }
   return socket.handshake.address;
-}
-
-export function emitError(socket: UnoSocket, error: ProtocolError): void {
-  socket.emit('error', error);
 }
 
 async function membersOf(
@@ -62,13 +57,6 @@ async function membersOf(
 
 function viewForData(data: SocketData, room: Room): AnyView {
   return data.seatId !== null ? toPlayerView(room, data.seatId) : toSpectatorView(room);
-}
-
-export async function broadcastSnapshot(io: UnoServer, room: Room): Promise<void> {
-  const summary = toRoomSummary(room);
-  for (const member of await membersOf(io, room.code)) {
-    member.emit('room:snapshot', { view: viewForData(member.data, room), room: summary });
-  }
 }
 
 export async function broadcastStarted(io: UnoServer, room: Room): Promise<void> {

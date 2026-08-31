@@ -22,13 +22,11 @@ export default defineConfig({
         // Type-only modules.
         'src/rooms/store.ts',
       ],
-      // Raised to 100 in the final CI task once every handler and the
-      // integration suite are in place.
       thresholds: {
-        branches: 85,
-        functions: 85,
-        lines: 85,
-        statements: 85,
+        branches: 100,
+        functions: 100,
+        lines: 100,
+        statements: 100,
       },
     },
   },

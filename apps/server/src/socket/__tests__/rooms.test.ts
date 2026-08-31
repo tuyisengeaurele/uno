@@ -95,6 +95,12 @@ describe('room:join', () => {
     expect(res.ok || res.error.code).toBe('room-not-found');
   });
 
+  it('rejects a malformed join payload', async () => {
+    const guest = await newClient();
+    const res = await emitAck(guest, 'room:join', { name: 'Béla' });
+    expect(res.ok || res.error.code).toBe('invalid-payload');
+  });
+
   it('makes an eleventh player a spectator', async () => {
     const host = await newClient();
     const { code } = await createRoom(host);
@@ -113,6 +119,33 @@ describe('room:join', () => {
 });
 
 describe('room:leave', () => {
+  it('deletes the room when the last seat leaves', async () => {
+    const host = await newClient();
+    const { code } = await createRoom(host);
+    await emitAck(host, 'room:leave');
+
+    const res = await fetch(`${server.url}/rooms/${code}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('drops a spectator that leaves', async () => {
+    const host = await newClient();
+    const { code } = await createRoom(host);
+    // Fill all ten seats so the next joiner spectates.
+    for (let i = 0; i < 9; i += 1) {
+      const filler = await newClient();
+      await emitAck(filler, 'room:join', { code, name: `F${String(i)}` });
+    }
+    const watcher = await newClient();
+    await emitAck(watcher, 'room:join', { code, name: 'Watcher' });
+    const before = await fetch(`${server.url}/rooms/${code}`).then((r) => r.json());
+    expect(before).toMatchObject({ spectatorCount: 1 });
+
+    await emitAck(watcher, 'room:leave');
+    const after = await fetch(`${server.url}/rooms/${code}`).then((r) => r.json());
+    expect(after).toMatchObject({ spectatorCount: 0 });
+  });
+
   it('removes a seat in the lobby and tells the others', async () => {
     const host = await newClient();
     const { code } = await createRoom(host);
