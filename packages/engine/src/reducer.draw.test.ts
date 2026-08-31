@@ -118,6 +118,29 @@ describe('play-drawn and pass', () => {
     expect(result.ok || result.error.code).toBe('nothing-to-pass');
   });
 
+  it('rejects a pass out of turn', () => {
+    const state = game({ hands: [hand('red-1'), hand('blue-2')], top: card('green-9') });
+    const result = applyAction(state, { type: 'pass', playerId: 'p1' }, ctx);
+    expect(result.ok || result.error.code).toBe('not-your-turn');
+  });
+
+  it('rejects play-drawn when nothing was drawn', () => {
+    const red1 = card('red-1');
+    const state = game({ hands: [[red1], hand('blue-2')], top: card('red-9') });
+    const result = applyAction(state, { type: 'play-drawn', playerId: 'p0', cardId: red1.id }, ctx);
+    expect(result.ok || result.error.code).toBe('card-not-drawn');
+  });
+
+  it('rejects a draw while a first-card colour choice is owed', () => {
+    const state = game({
+      hands: [hand('red-1'), hand('blue-2')],
+      top: card('wild'),
+      pendingColorChoice: 'p0',
+    });
+    const result = applyAction(state, { type: 'draw', playerId: 'p0' }, ctx);
+    expect(result.ok || result.error.code).toBe('resolve-color-choice');
+  });
+
   it('blocks a normal play while a drawn card is unresolved', () => {
     const red1 = card('red-1');
     const state = game({

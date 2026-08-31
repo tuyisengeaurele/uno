@@ -27,6 +27,12 @@ describe('calling UNO', () => {
     expect(played.state.unoWindow).toBeNull();
   });
 
+  it('rejects a call from an unknown player', () => {
+    const state = game({ hands: [hand('red-5'), hand('green-3')], top: card('red-9') });
+    const result = applyAction(state, { type: 'call-uno', playerId: 'ghost' }, ctx);
+    expect(result.ok || result.error.code).toBe('unknown-player');
+  });
+
   it('rejects a call with more than two cards', () => {
     const state = game({
       hands: [hand('red-5', 'red-6', 'red-7'), hand('green-3')],
@@ -102,6 +108,20 @@ describe('catching an unfair UNO', () => {
       ctx,
     );
     expect(result.ok || result.error.code).toBe('no-uno-to-catch');
+  });
+
+  it('rejects a catch against an unknown target', () => {
+    const state = game({
+      hands: [hand('red-5'), hand('green-3')],
+      top: card('red-9'),
+      unoWindow: { playerId: 'p0' },
+    });
+    const result = applyAction(
+      state,
+      { type: 'catch-unfair-uno', accuserId: 'p1', targetId: 'ghost' },
+      ctx,
+    );
+    expect(result.ok || result.error.code).toBe('unknown-player');
   });
 
   it('rejects a catch from an unknown accuser', () => {

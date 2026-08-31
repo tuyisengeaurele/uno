@@ -21,11 +21,19 @@ describe('tallyRound', () => {
       { id: 'b', name: 'B', hand: hand('red-9', 'blue-5'), hasCalledUno: false },
       { id: 'c', name: 'C', hand: [card('wild')], hasCalledUno: false },
     ];
-    expect(tallyRound(players, 'a', { a: 10, b: 0, c: 0 })).toEqual({
-      a: 10 + 14 + 50,
-      b: 0,
-      c: 0,
-    });
+    const tally = tallyRound(players, 'a', { a: 10, b: 0, c: 0 });
+    expect(tally.scores).toEqual({ a: 10 + 14 + 50, b: 0, c: 0 });
+    expect(tally.winnerTotal).toBe(74);
+  });
+
+  it('treats a winner with no prior score as starting from zero', () => {
+    const players = [
+      { id: 'a', name: 'A', hand: [], hasCalledUno: false },
+      { id: 'b', name: 'B', hand: hand('red-4'), hasCalledUno: false },
+    ];
+    const tally = tallyRound(players, 'a', { b: 0 });
+    expect(tally.scores).toEqual({ a: 4, b: 0 });
+    expect(tally.winnerTotal).toBe(4);
   });
 });
 

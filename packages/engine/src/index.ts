@@ -41,5 +41,5 @@ export type { GameError, GameErrorCode } from './errors.js';
 export type { Direction } from './turn.js';
 
 export { startRound, startNextRound, type PlayerSeat, type RoundSetup } from './setup.js';
-export { handValue, tallyRound } from './scoring.js';
+export { handValue, tallyRound, type RoundTally } from './scoring.js';
 export { applyAction, type ActionResult, type EngineContext } from './reducer.js';

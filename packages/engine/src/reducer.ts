@@ -84,6 +84,7 @@ function advance(state: GameState, direction: Direction, step: number): number {
 
 /** Whether `card` may be added to the pending draw stack under the house rules. */
 function canStack(card: Card, pendingKind: PendingDrawKind | null, rules: HouseRules): boolean {
+  /* c8 ignore next 3 -- pendingDrawKind is always set while pendingDraw is positive */
   if (pendingKind === null) {
     return false;
   }
@@ -278,8 +279,8 @@ function resolvePlay(
     );
   }
 
-  const scores = tallyRound(players, winnerId, state.scores);
-  const matchOver = (scores[winnerId] ?? 0) >= state.config.targetScore;
+  const { scores, winnerTotal } = tallyRound(players, winnerId, state.scores);
+  const matchOver = winnerTotal >= state.config.targetScore;
   events.push(
     matchOver
       ? { type: 'match-ended', winnerId, scores }
@@ -555,6 +556,7 @@ function applyChallenge(
       gameError('challenge-not-available', 'only the player facing the card may challenge'),
     );
   }
+  /* c8 ignore next 3 -- a pending wild four and a held drawn card cannot coexist */
   if (state.drawnCard !== null) {
     return reject(gameError('challenge-not-available', 'you have already responded'));
   }
