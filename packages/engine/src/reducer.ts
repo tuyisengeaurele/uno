@@ -5,7 +5,13 @@ import { drawCards } from './deck.js';
 import { gameError, type GameError } from './errors.js';
 import type { GameEvent } from './events.js';
 import type { Rng } from './rng.js';
-import { currentPlayer, type GameState, type PendingDrawKind, type PlayerState } from './state.js';
+import {
+  currentPlayer,
+  playerById,
+  type GameState,
+  type PendingDrawKind,
+  type PlayerState,
+} from './state.js';
 import { nextIndex, reverse, type Direction } from './turn.js';
 
 export interface EngineContext {
@@ -43,10 +49,12 @@ export function applyAction(
       return applyDraw(state, action, ctx);
     case 'pass':
       return applyPass(state, action);
-    default:
-      // Handlers for call-uno, catch-unfair-uno, and challenge-wild-four land in
-      // the tasks that follow. Removed once the switch is exhaustive.
-      return reject(gameError('challenge-not-available', `unhandled action: ${action.type}`));
+    case 'call-uno':
+      return applyCallUno(state, action);
+    case 'catch-unfair-uno':
+      return applyCatchUno(state, action, ctx);
+    case 'challenge-wild-four':
+      return applyChallenge(state, action, ctx);
   }
 }
 
@@ -243,10 +251,9 @@ function resolvePlay(
 
   const winnerId = handAfter.length === 0 ? player.id : null;
 
-  let unoWindow = state.unoWindow;
-  if (state.unoWindow?.playerId === player.id) {
-    unoWindow = null;
-  }
+  // Any turn-advancing action ends the previous UNO window: either the vulnerable
+  // player has acted again, or the opponent who could have caught them moved on.
+  let unoWindow: GameState['unoWindow'] = null;
   if (winnerId === null && handAfter.length === 1 && !player.hasCalledUno) {
     unoWindow = { playerId: player.id };
   }
@@ -339,6 +346,7 @@ function servePendingDraw(state: GameState, player: PlayerState, ctx: EngineCont
       pendingDrawKind: null,
       pendingWildFour: null,
       drawnCard: null,
+      unoWindow: null,
       currentPlayerIndex: advance(state, state.direction, 1),
     },
     [
@@ -404,6 +412,7 @@ function drawForTurn(state: GameState, player: PlayerState, ctx: EngineContext):
         drawPile: pile,
         discardPile: discard,
         drawnCard: { playerId: player.id, cardId: playableDrawn.id, playable: true },
+        unoWindow: null,
       },
       [drewEvent],
     );
@@ -416,6 +425,7 @@ function drawForTurn(state: GameState, player: PlayerState, ctx: EngineContext):
       drawPile: pile,
       discardPile: discard,
       drawnCard: null,
+      unoWindow: null,
       currentPlayerIndex: advance(state, state.direction, 1),
     },
     [drewEvent],
@@ -434,7 +444,161 @@ function applyPass(state: GameState, action: Extract<GameAction, { type: 'pass' 
   }
 
   return succeed(
-    { ...state, drawnCard: null, currentPlayerIndex: advance(state, state.direction, 1) },
+    {
+      ...state,
+      drawnCard: null,
+      unoWindow: null,
+      currentPlayerIndex: advance(state, state.direction, 1),
+    },
     [],
+  );
+}
+
+// --- call-uno / catch-unfair-uno --------------------------------------
+
+function applyCallUno(
+  state: GameState,
+  action: Extract<GameAction, { type: 'call-uno' }>,
+): ActionResult {
+  const player = playerById(state, action.playerId);
+  if (player === undefined) {
+    return reject(gameError('unknown-player', 'no such player'));
+  }
+  if (player.hand.length === 0 || player.hand.length > 2) {
+    return reject(gameError('uno-not-available', 'you can only call UNO at one or two cards'));
+  }
+
+  const players = replacePlayer(state.players, player.id, (p) => ({ ...p, hasCalledUno: true }));
+  const unoWindow = state.unoWindow?.playerId === player.id ? null : state.unoWindow;
+
+  return succeed({ ...state, players, unoWindow }, [{ type: 'uno-called', playerId: player.id }]);
+}
+
+function applyCatchUno(
+  state: GameState,
+  action: Extract<GameAction, { type: 'catch-unfair-uno' }>,
+  ctx: EngineContext,
+): ActionResult {
+  if (playerById(state, action.accuserId) === undefined) {
+    return reject(gameError('unknown-player', 'no such accuser'));
+  }
+  const target = playerById(state, action.targetId);
+  if (target === undefined) {
+    return reject(gameError('unknown-player', 'no such target'));
+  }
+  if (state.unoWindow?.playerId !== action.targetId || target.hand.length !== 1) {
+    return reject(gameError('no-uno-to-catch', 'that player is not open to a UNO catch'));
+  }
+
+  const penalty = state.config.unoPenalty;
+  const { drawn, drawPile, discardPile } = drawCards(
+    state.drawPile,
+    state.discardPile,
+    penalty,
+    ctx.rng,
+  );
+  const players = replacePlayer(state.players, target.id, (p) => ({
+    ...p,
+    hand: [...p.hand, ...drawn],
+    hasCalledUno: false,
+  }));
+
+  return succeed({ ...state, players, drawPile, discardPile, unoWindow: null }, [
+    {
+      type: 'uno-penalty',
+      playerId: target.id,
+      accuserId: action.accuserId,
+      count: drawn.length,
+    },
+  ]);
+}
+
+// --- challenge-wild-four ---------------------------------------------
+
+function applyChallenge(
+  state: GameState,
+  action: Extract<GameAction, { type: 'challenge-wild-four' }>,
+  ctx: EngineContext,
+): ActionResult {
+  const pending = state.pendingWildFour;
+  if (pending === null || state.pendingDraw === 0) {
+    return reject(gameError('challenge-not-available', 'there is no wild draw four to challenge'));
+  }
+  const challenger = currentPlayer(state);
+  if (challenger.id !== action.challengerId) {
+    return reject(
+      gameError('challenge-not-available', 'only the player facing the card may challenge'),
+    );
+  }
+  if (state.drawnCard !== null) {
+    return reject(gameError('challenge-not-available', 'you have already responded'));
+  }
+
+  const target = playerById(state, pending.playedBy);
+  /* c8 ignore next 3 -- the player who played the card is still in the game */
+  if (target === undefined) {
+    throw new Error('challenged player is not in the game');
+  }
+
+  const upheld = pending.hadColorMatch;
+  const cleared = {
+    pendingDraw: 0,
+    pendingDrawKind: null,
+    pendingWildFour: null,
+  } satisfies Partial<GameState>;
+
+  if (upheld) {
+    const penalty = state.pendingDraw;
+    const { drawn, drawPile, discardPile } = drawCards(
+      state.drawPile,
+      state.discardPile,
+      penalty,
+      ctx.rng,
+    );
+    const players = replacePlayer(state.players, target.id, (p) => ({
+      ...p,
+      hand: [...p.hand, ...drawn],
+    }));
+    return succeed({ ...state, ...cleared, players, drawPile, discardPile }, [
+      {
+        type: 'challenge-resolved',
+        challengerId: challenger.id,
+        targetId: target.id,
+        upheld: true,
+        penalty: drawn.length,
+      },
+    ]);
+  }
+
+  const penalty = state.pendingDraw + 2;
+  const { drawn, drawPile, discardPile } = drawCards(
+    state.drawPile,
+    state.discardPile,
+    penalty,
+    ctx.rng,
+  );
+  const players = replacePlayer(state.players, challenger.id, (p) => ({
+    ...p,
+    hand: [...p.hand, ...drawn],
+    hasCalledUno: false,
+  }));
+  return succeed(
+    {
+      ...state,
+      ...cleared,
+      players,
+      drawPile,
+      discardPile,
+      currentPlayerIndex: advance(state, state.direction, 1),
+    },
+    [
+      {
+        type: 'challenge-resolved',
+        challengerId: challenger.id,
+        targetId: target.id,
+        upheld: false,
+        penalty: drawn.length,
+      },
+    ],
   );
 }
